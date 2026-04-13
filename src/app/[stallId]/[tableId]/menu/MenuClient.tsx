@@ -327,7 +327,7 @@ export default function MenuClient({
               <span className="text-5xl mb-4 block">📋</span>
               <h2 className="text-[#E4A11B] font-bold text-lg mb-2">Menu Not Available</h2>
               <p className="text-gray-400 text-sm mb-6">
-                The menu for this table hasn't been set up yet. Please ask the staff to add menu items.
+                The menu for this table has not been set up yet. Please ask the staff to add menu items.
               </p>
               
               {/* Add Test Items Button (for development) */}
@@ -356,7 +356,7 @@ export default function MenuClient({
                       <p className="mb-1"><span className="text-[#E4A11B]">Table ID:</span> {tableId}</p>
                       <p className="mb-1"><span className="text-[#E4A11B]">Business:</span> {businessName}</p>
                       <p className="text-[#ff6b6b]">⚠️ No items found in Firebase</p>
-                      <p className="text-[#87ceeb] mt-2 text-[10px]">Use "Add Test Items" to populate sample menu data</p>
+                      <p className="text-[#87ceeb] mt-2 text-[10px]">Use Add Test Items to populate sample menu data</p>
                     </div>
                   )}
                 </div>
