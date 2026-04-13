@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
   addDoc,
@@ -18,7 +18,6 @@ import CartDrawer from "@/components/CartDrawer";
 import OrderTracker from "@/components/OrderTracker";
 import Footer from "@/components/Footer";
 import OffersModal from "@/components/OffersModal";
-import DealsModal from "@/components/DealsModal";
 
 interface Props {
   stallId: string;
@@ -51,12 +50,12 @@ export default function MenuClient({
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [specialsModalOpen, setSpecialsModalOpen] = useState(false);
-  const [dealsModalOpen, setDealsModalOpen] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [noDealsAlert, setNoDealsAlert] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(initialMenu.length === 0);
   const [addingTestItems, setAddingTestItems] = useState(false);
   const [isOrderingOpen, setIsOrderingOpen] = useState(true);
+  const dealsSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!ownerUid) return;
@@ -253,7 +252,7 @@ export default function MenuClient({
         setNoDealsAlert("No live deals right now. Please check again later.");
         return;
       }
-      setDealsModalOpen(true);
+      dealsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
 
@@ -385,7 +384,7 @@ export default function MenuClient({
       <main className="flex-1 px-4 py-6">
         {/* ── Today Deals Section ── */}
         {deals.length > 0 && (
-          <div className="mb-8">
+          <div ref={dealsSectionRef} className="mb-8 scroll-mt-24">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-[#E4A11B] text-xl">🏷️</span>
               <h2 className="text-white font-bold text-lg">Today Deal</h2>
@@ -558,13 +557,6 @@ export default function MenuClient({
         onUpdateQty={updateQty}
         onPlaceOrder={handlePlaceOrder}
         placing={placingOrder}
-      />
-
-      {/* ── Deals Modal ── */}
-      <DealsModal
-        open={dealsModalOpen}
-        deals={deals}
-        onClose={() => setDealsModalOpen(false)}
       />
 
       {/* ── Specials Modal ── */}
