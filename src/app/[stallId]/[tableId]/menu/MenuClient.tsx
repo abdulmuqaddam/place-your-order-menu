@@ -112,6 +112,18 @@ export default function MenuClient({
     [menu]
   );
 
+  const dealItemNames = useMemo(() => {
+    const names = new Set<string>();
+    deals.forEach((deal) => {
+      (deal.itemNames || "")
+        .split(",")
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean)
+        .forEach((name) => names.add(name));
+    });
+    return names;
+  }, [deals]);
+
   // ── Cart helpers ───────────────────────────────────────────────────────────
   const cartCount = useMemo(
     () => Object.values(cart).reduce((acc, c) => acc + c.quantity, 0),
@@ -446,6 +458,7 @@ export default function MenuClient({
                 onIncrease={() => updateQty(item.id, 1)}
                 onDecrease={() => updateQty(item.id, -1)}
                 businessType={businessType}
+                isDealHighlighted={dealItemNames.has((item.name || "").trim().toLowerCase())}
               />
             ))}
           </div>

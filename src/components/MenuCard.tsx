@@ -11,6 +11,7 @@ interface Props {
   onIncrease: () => void;
   onDecrease: () => void;
   businessType: string;
+  isDealHighlighted?: boolean;
 }
 
 function getPriceLabel(item: MenuItem, businessType: string): string {
@@ -36,6 +37,7 @@ export default function MenuCard({
   onIncrease,
   onDecrease,
   businessType,
+  isDealHighlighted = false,
 }: Props) {
   return (
     <div className="menu-card bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden flex flex-col shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
@@ -66,6 +68,13 @@ export default function MenuCard({
                 SPECIAL
               </span>
             )}
+          </div>
+        )}
+        {isDealHighlighted && (
+          <div className="absolute top-2 right-2">
+            <span className="bg-[#22c55e] text-black text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+              DEAL
+            </span>
           </div>
         )}
       </div>
