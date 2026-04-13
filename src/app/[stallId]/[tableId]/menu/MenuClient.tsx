@@ -316,8 +316,8 @@ export default function MenuClient({
         <h1 className="text-2xl md:text-3xl font-bold text-white relative z-10">
           {businessName}
         </h1>
-        <p className="text-[#E4A11B] text-sm mt-1 relative z-10 font-medium">
-          Table {tableId} · Scan & Order
+        <p className="text-[#E4A11B] text-sm mt-2 relative z-10 font-medium">
+          📍 Table No: {tableId}
         </p>
       </div>
 
@@ -384,6 +384,88 @@ export default function MenuClient({
 
       {/* ── Menu Grid ── */}
       <main className="flex-1 px-4 py-6">
+        {/* ── Today Deals Section ── */}
+        {deals.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-[#E4A11B] text-xl">🏷️</span>
+              <h2 className="text-white font-bold text-lg">Today Deal</h2>
+              <span className="text-gray-500 text-xs">({deals.length})</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pb-6 border-b border-[#2a2a2a]">
+              {deals.map((deal) => (
+                <div
+                  key={deal.id}
+                  className="menu-card bg-[#1a1a1a] border border-[#22c55e]/30 rounded-xl overflow-hidden flex flex-col shadow-[0_6px_18px_rgba(0,0,0,0.25)]"
+                >
+                  {/* Deal Image */}
+                  <div className="relative w-full h-28 md:h-36 bg-[#2a2a2a] flex-shrink-0">
+                    {deal.image ? (
+                      <img
+                        src={deal.image}
+                        alt={deal.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl">
+                        🏷️
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2">
+                      <span className="bg-[#22c55e] text-black text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                        DEAL
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Deal Info */}
+                  <div className="p-2.5 flex flex-col flex-1 gap-1">
+                    <h3 className="text-white font-semibold text-[13px] leading-tight line-clamp-1">
+                      {deal.name}
+                    </h3>
+                    <p className="text-gray-400 text-[11px] line-clamp-2">
+                      {deal.itemNames || "Special combo"}
+                    </p>
+                    <p className="text-[#E4A11B] text-[11px] font-semibold mt-auto pt-1">
+                      Rs. {deal.price}
+                    </p>
+                    {deal.endDate && (
+                      <p className="text-gray-500 text-[10px]">
+                        Valid till {deal.endDate}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Add to Cart */}
+                  <div className="px-2.5 pb-2.5">
+                    <button
+                      onClick={() => {
+                        setCart((prev) => ({
+                          ...prev,
+                          [deal.id!]: {
+                            item: {
+                              id: deal.id!,
+                              name: deal.name,
+                              price: deal.price,
+                              description: deal.itemNames,
+                              available: true,
+                            } as MenuItem,
+                            quantity: (prev[deal.id!]?.quantity || 0) + 1,
+                          },
+                        }));
+                      }}
+                      className="w-full py-2 rounded-lg bg-[#E4A11B] text-black text-xs font-bold active:scale-95 transition-transform hover:bg-[#f5c842]"
+                    >
+                      Place Order
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Menu Items Section ── */}
         {menu.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-[#1e1e1e] border border-[#E4A11B]/30 rounded-2xl p-8 w-full max-w-md text-center">
@@ -432,20 +514,23 @@ export default function MenuClient({
             <p className="text-base">No items in this category</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-            {filteredMenu.map((item) => (
-              <MenuCard
-                key={item.id}
-                item={item}
-                quantity={cart[item.id]?.quantity || 0}
-                onAdd={() => addToCart(item)}
-                onIncrease={() => updateQty(item.id, 1)}
-                onDecrease={() => updateQty(item.id, -1)}
-                businessType={businessType}
-                isDealHighlighted={dealItemNames.has((item.name || "").trim().toLowerCase())}
-              />
-            ))}
-          </div>
+          <>
+            <h3 className="text-white font-bold text-lg mb-4">All Menu Items</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+              {filteredMenu.map((item) => (
+                <MenuCard
+                  key={item.id}
+                  item={item}
+                  quantity={cart[item.id]?.quantity || 0}
+                  onAdd={() => addToCart(item)}
+                  onIncrease={() => updateQty(item.id, 1)}
+                  onDecrease={() => updateQty(item.id, -1)}
+                  businessType={businessType}
+                  isDealHighlighted={dealItemNames.has((item.name || "").trim().toLowerCase())}
+                />
+              ))}
+            </div>
+          </>
         )}
       </main>
 

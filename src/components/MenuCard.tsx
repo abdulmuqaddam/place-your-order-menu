@@ -99,7 +99,7 @@ export default function MenuCard({
             onClick={onAdd}
             className="w-full py-2 rounded-lg bg-[#E4A11B] text-black text-xs font-bold active:scale-95 transition-transform hover:bg-[#f5c842]"
           >
-            Add to Cart
+            Place Order
           </button>
         ) : (
           <div className="flex items-center justify-between bg-[#2a2a2a] rounded-lg px-2.5 py-1.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ShoppingCartIcon, SparklesIcon, TagIcon } from "@heroicons/react/24/outline";
 
 interface Props {
@@ -20,10 +21,10 @@ export default function Navbar({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#0e0e0e]/95 backdrop-blur-md border-b border-[#1e1e1e]">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-        {/* Brand */}
-        <span className="text-[#E4A11B] font-bold text-base truncate max-w-[140px] sm:max-w-none">
+        {/* Brand - Home Link */}
+        <Link href="/" className="text-[#E4A11B] font-bold text-base truncate max-w-[140px] sm:max-w-none hover:text-[#f5c842] transition-colors">
           {businessName}
-        </span>
+        </Link>
 
         {/* Nav links */}
         <nav className="hidden sm:flex items-center gap-1">
@@ -32,7 +33,7 @@ export default function Navbar({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-300 hover:text-[#E4A11B] hover:bg-[#1e1e1e] transition-colors"
           >
             <TagIcon className="w-4 h-4" />
-            Today&apos;s Offers
+            Today Deal
           </button>
           <button
             onClick={onSpecialsClick}
