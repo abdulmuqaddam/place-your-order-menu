@@ -227,14 +227,6 @@ export default function MenuClient({
     const q = query(collection(db, "deals"), where("stallId", "==", ownerUid));
     const unsub = onSnapshot(q, (snapshot) => {
       const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-      const parseMinutes = (value?: string): number | null => {
-        if (!value) return null;
-        const [h, m] = value.split(":").map(Number);
-        if (Number.isNaN(h) || Number.isNaN(m)) return null;
-        return h * 60 + m;
-      };
 
       const activeDeals = snapshot.docs
         .map((snap) => ({ id: snap.id, ...snap.data() } as Deal))
@@ -245,14 +237,6 @@ export default function MenuClient({
             const end = new Date(`${deal.endDate}T23:59:59`);
             if (!Number.isNaN(end.getTime()) && now > end) return false;
           }
-
-          const openMinutes = parseMinutes(deal.openingTime);
-          const closeMinutes = parseMinutes(deal.closingTime);
-
-          if (openMinutes !== null && closeMinutes !== null) {
-            return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
-          }
-
           return true;
         });
 
