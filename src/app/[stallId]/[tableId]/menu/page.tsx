@@ -1,6 +1,7 @@
 import { fetchMenu, fetchStall } from "@/lib/firestore";
 import type { Metadata } from "next";
 import MenuClient from "./MenuClient";
+import OrderingClosedMessage from "@/components/OrderingClosedMessage";
 
 interface Props {
   params: { stallId: string; tableId: string };
@@ -18,6 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MenuPage({ params }: Props) {
   const stall = await fetchStall(params.stallId);
   const resolvedOwnerUid = stall?.ownerUid || params.stallId;
+  const isOrderingOpen = stall?.isOrderingOpen !== false;
+
+  if (!isOrderingOpen) {
+    const businessName = stall?.businessName || stall?.name || "Our Restaurant";
+    return <OrderingClosedMessage businessName={businessName} />;
+  }
+
   const menuItems = await fetchMenu(params.stallId, resolvedOwnerUid);
 
   const businessName = stall?.businessName || stall?.name || "Our Restaurant";

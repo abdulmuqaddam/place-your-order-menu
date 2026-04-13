@@ -20,6 +20,7 @@ export interface StallData {
   businessType?: string;
   tableCount?: number;
   ownerUid?: string;
+  isOrderingOpen?: boolean;
 }
 
 export interface CartItem {

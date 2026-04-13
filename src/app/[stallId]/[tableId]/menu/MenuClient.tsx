@@ -56,6 +56,19 @@ export default function MenuClient({
   const [noDealsAlert, setNoDealsAlert] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(initialMenu.length === 0);
   const [addingTestItems, setAddingTestItems] = useState(false);
+  const [isOrderingOpen, setIsOrderingOpen] = useState(true);
+
+  useEffect(() => {
+    if (!ownerUid) return;
+    const unsub = onSnapshot(doc(db, "stalls", ownerUid), (snap) => {
+      if (!snap.exists()) {
+        setIsOrderingOpen(true);
+        return;
+      }
+      setIsOrderingOpen(snap.data().isOrderingOpen !== false);
+    });
+    return unsub;
+  }, [ownerUid]);
 
   // ── Real-time menu listener ─────────────────────────────────────────────────
   useEffect(() => {
@@ -150,6 +163,10 @@ export default function MenuClient({
   // ── Place Order ────────────────────────────────────────────────────────────
   const handlePlaceOrder = useCallback(async () => {
     if (placingOrder || Object.keys(cart).length === 0) return;
+    if (!isOrderingOpen) {
+      setNoDealsAlert("Online ordering is currently closed. Please try again later.");
+      return;
+    }
     setPlacingOrder(true);
 
     const orderItems = Object.values(cart).map((c) => ({
@@ -183,7 +200,7 @@ export default function MenuClient({
     } finally {
       setPlacingOrder(false);
     }
-  }, [cart, cartTotal, placingOrder, ownerUid, tableId, clearCart]);
+  }, [cart, cartTotal, placingOrder, ownerUid, tableId, clearCart, isOrderingOpen]);
 
   // ── Live Order Listener ────────────────────────────────────────────────────
   useEffect(() => {
@@ -266,6 +283,13 @@ export default function MenuClient({
       </div>
 
       {/* ── Order success toast ── */}
+      {!isOrderingOpen && (
+        <div className="mx-4 mt-4 bg-[#2b1616] border border-[#6b2a2a] rounded-xl p-4">
+          <p className="text-[#FFB3B3] font-semibold text-sm">Online ordering is currently closed.</p>
+          <p className="text-gray-300 text-xs mt-1">Please check back later when the tea stall opens orders.</p>
+        </div>
+      )}
+
       {orderSuccess && orderId && (
         <div className="mx-4 mt-4 bg-[#1a2a1a] border border-green-700/50 rounded-xl p-4">
           <p className="text-green-400 font-semibold text-sm mb-1">
