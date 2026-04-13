@@ -38,9 +38,9 @@ export default function MenuCard({
   businessType,
 }: Props) {
   return (
-    <div className="menu-card bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl overflow-hidden flex flex-col">
+    <div className="menu-card bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden flex flex-col shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
       {/* Image */}
-      <div className="relative w-full h-44 bg-[#2a2a2a] flex-shrink-0">
+      <div className="relative w-full h-28 md:h-36 bg-[#2a2a2a] flex-shrink-0">
         {item.image ? (
           <Image
             src={item.image}
@@ -71,41 +71,41 @@ export default function MenuCard({
       </div>
 
       {/* Info */}
-      <div className="p-3 flex flex-col flex-1 gap-1">
-        <h3 className="text-white font-semibold text-sm leading-tight line-clamp-1">
+      <div className="p-2.5 flex flex-col flex-1 gap-1">
+        <h3 className="text-white font-semibold text-[13px] leading-tight line-clamp-1">
           {item.name}
         </h3>
         {item.description && (
-          <p className="text-gray-500 text-xs line-clamp-2">{item.description}</p>
+          <p className="text-gray-500 text-[11px] line-clamp-2">{item.description}</p>
         )}
-        <p className="text-[#E4A11B] text-xs font-medium mt-auto pt-1">
+        <p className="text-[#E4A11B] text-[11px] font-semibold mt-auto pt-1">
           {getPriceLabel(item, businessType)}
         </p>
       </div>
 
       {/* Add to Cart */}
-      <div className="px-3 pb-3">
+      <div className="px-2.5 pb-2.5">
         {quantity === 0 ? (
           <button
             onClick={onAdd}
-            className="w-full py-2 rounded-xl bg-[#E4A11B] text-black text-sm font-bold active:scale-95 transition-transform hover:bg-[#f5c842]"
+            className="w-full py-2 rounded-lg bg-[#E4A11B] text-black text-xs font-bold active:scale-95 transition-transform hover:bg-[#f5c842]"
           >
             Add to Cart
           </button>
         ) : (
-          <div className="flex items-center justify-between bg-[#2a2a2a] rounded-xl px-3 py-1.5">
+          <div className="flex items-center justify-between bg-[#2a2a2a] rounded-lg px-2.5 py-1.5">
             <button
               onClick={onDecrease}
-              className="w-7 h-7 rounded-lg bg-[#1e1e1e] flex items-center justify-center active:scale-90 transition-transform"
+              className="w-6 h-6 rounded-md bg-[#1e1e1e] flex items-center justify-center active:scale-90 transition-transform"
             >
               <MinusIcon className="w-4 h-4 text-[#E4A11B]" />
             </button>
-            <span className="text-white font-bold text-sm min-w-[24px] text-center">
+            <span className="text-white font-bold text-xs min-w-[20px] text-center">
               {quantity}
             </span>
             <button
               onClick={onIncrease}
-              className="w-7 h-7 rounded-lg bg-[#E4A11B] flex items-center justify-center active:scale-90 transition-transform"
+              className="w-6 h-6 rounded-md bg-[#E4A11B] flex items-center justify-center active:scale-90 transition-transform"
             >
               <PlusIcon className="w-4 h-4 text-black" />
             </button>

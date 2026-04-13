@@ -11,13 +11,14 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import type { Cart, MenuItem, Order, OrderStatus } from "@/types";
+import type { Cart, Deal, MenuItem, Order, OrderStatus } from "@/types";
 import Navbar from "@/components/Navbar";
 import MenuCard from "@/components/MenuCard";
 import CartDrawer from "@/components/CartDrawer";
 import OrderTracker from "@/components/OrderTracker";
 import Footer from "@/components/Footer";
 import OffersModal from "@/components/OffersModal";
+import DealsModal from "@/components/DealsModal";
 
 interface Props {
   stallId: string;
@@ -49,10 +50,9 @@ export default function MenuClient({
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
-  const [offersModal, setOffersModal] = useState<{
-    open: boolean;
-    type: "offers" | "specials";
-  }>({ open: false, type: "offers" });
+  const [specialsModalOpen, setSpecialsModalOpen] = useState(false);
+  const [dealsModalOpen, setDealsModalOpen] = useState(false);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [noDealsAlert, setNoDealsAlert] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(initialMenu.length === 0);
   const [addingTestItems, setAddingTestItems] = useState(false);
@@ -107,10 +107,6 @@ export default function MenuClient({
   }, [menu, activeCategory]);
 
   // ── Offer / Specials items ─────────────────────────────────────────────────
-  const offerItems = useMemo(
-    () => menu.filter((i) => i.isOffer === true),
-    [menu]
-  );
   const specialItems = useMemo(
     () => menu.filter((i) => i.isSpecial === true),
     [menu]
@@ -213,18 +209,65 @@ export default function MenuClient({
     return unsub;
   }, [orderId]);
 
+  useEffect(() => {
+    if (!ownerUid) return;
+
+    const q = query(collection(db, "deals"), where("stallId", "==", ownerUid));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const parseMinutes = (value?: string): number | null => {
+        if (!value) return null;
+        const [h, m] = value.split(":").map(Number);
+        if (Number.isNaN(h) || Number.isNaN(m)) return null;
+        return h * 60 + m;
+      };
+
+      const activeDeals = snapshot.docs
+        .map((snap) => ({ id: snap.id, ...snap.data() } as Deal))
+        .filter((deal) => {
+          if (deal.active === false) return false;
+
+          if (deal.endDate) {
+            const end = new Date(`${deal.endDate}T23:59:59`);
+            if (!Number.isNaN(end.getTime()) && now > end) return false;
+          }
+
+          const openMinutes = parseMinutes(deal.openingTime);
+          const closeMinutes = parseMinutes(deal.closingTime);
+
+          if (openMinutes !== null && closeMinutes !== null) {
+            return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
+          }
+
+          return true;
+        });
+
+      setDeals(activeDeals);
+    });
+
+    return unsub;
+  }, [ownerUid]);
+
   // ── Navbar handler ─────────────────────────────────────────────────────────
   const handleNavAction = (type: "offers" | "specials") => {
-    const items = type === "offers" ? offerItems : specialItems;
-    if (items.length === 0) {
+    if (type === "offers") {
+      if (deals.length === 0) {
+        setNoDealsAlert("No live deals right now. Please check again later.");
+        return;
+      }
+      setDealsModalOpen(true);
+      return;
+    }
+
+    if (specialItems.length === 0) {
       const msg =
-        type === "offers"
-          ? "We are currently not offering any deals today. Stay tuned!"
-          : "No special items available right now. Check back soon!";
+        "No special items available right now. Check back soon!";
       setNoDealsAlert(msg);
       return;
     }
-    setOffersModal({ open: true, type });
+    setSpecialsModalOpen(true);
   };
 
   // ── Add test items handler ───────────────────────────────────────────────────
@@ -393,7 +436,7 @@ export default function MenuClient({
             <p className="text-base">No items in this category</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredMenu.map((item) => (
               <MenuCard
                 key={item.id}
@@ -436,13 +479,20 @@ export default function MenuClient({
         placing={placingOrder}
       />
 
-      {/* ── Offers / Specials Modal ── */}
+      {/* ── Deals Modal ── */}
+      <DealsModal
+        open={dealsModalOpen}
+        deals={deals}
+        onClose={() => setDealsModalOpen(false)}
+      />
+
+      {/* ── Specials Modal ── */}
       <OffersModal
-        open={offersModal.open}
-        type={offersModal.type}
-        items={offersModal.type === "offers" ? offerItems : specialItems}
+        open={specialsModalOpen}
+        type="specials"
+        items={specialItems}
         cart={cart}
-        onClose={() => setOffersModal((s) => ({ ...s, open: false }))}
+        onClose={() => setSpecialsModalOpen(false)}
         onAdd={addToCart}
         onIncrease={(id) => updateQty(id, 1)}
         onDecrease={(id) => updateQty(id, -1)}

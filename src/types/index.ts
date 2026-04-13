@@ -55,3 +55,16 @@ export interface Order {
 }
 
 export type OrderStatus = Order["status"];
+
+export interface Deal {
+  id: string;
+  stallId: string;
+  name: string;
+  itemNames: string;
+  price: number;
+  openingTime: string;
+  closingTime: string;
+  endDate: string;
+  image?: string | null;
+  active?: boolean;
+}
