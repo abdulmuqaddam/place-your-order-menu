@@ -301,6 +301,8 @@ export default function MenuClient({
   return (
     <div className="min-h-screen bg-[#121212] flex flex-col">
       <Navbar
+        stallId={stallId}
+        tableId={tableId}
         businessName={businessName}
         cartCount={cartCount}
         onCartOpen={() => setCartOpen(true)}
@@ -313,9 +315,6 @@ export default function MenuClient({
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-[#E4A11B] opacity-[0.04] blur-[80px] rounded-full" />
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-white relative z-10">
-          {businessName}
-        </h1>
         <p className="text-[#E4A11B] text-sm mt-2 relative z-10 font-medium">
           📍 Table No: {tableId}
         </p>

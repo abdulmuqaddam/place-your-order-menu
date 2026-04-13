@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ShoppingCartIcon, SparklesIcon, TagIcon } from "@heroicons/react/24/outline";
 
 interface Props {
+  stallId: string;
+  tableId: string;
   businessName: string;
   cartCount: number;
   onCartOpen: () => void;
@@ -12,6 +14,8 @@ interface Props {
 }
 
 export default function Navbar({
+  stallId,
+  tableId,
   businessName,
   cartCount,
   onCartOpen,
@@ -21,8 +25,11 @@ export default function Navbar({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#0e0e0e]/95 backdrop-blur-md border-b border-[#1e1e1e]">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-        {/* Brand - Home Link */}
-        <Link href="/" className="text-[#E4A11B] font-bold text-base truncate max-w-[140px] sm:max-w-none hover:text-[#f5c842] transition-colors">
+        {/* Brand - Menu Link */}
+        <Link
+          href={`/${stallId}/${tableId}/menu`}
+          className="text-[#E4A11B] font-bold text-base truncate max-w-[140px] sm:max-w-none hover:text-[#f5c842] transition-colors"
+        >
           {businessName}
         </Link>
 
@@ -50,7 +57,7 @@ export default function Navbar({
             onClick={onOffersClick}
             className="text-xs text-gray-400 hover:text-[#E4A11B] px-2 py-1 rounded transition-colors"
           >
-            Offers
+            Deal
           </button>
           <button
             onClick={onSpecialsClick}
