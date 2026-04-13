@@ -3,6 +3,41 @@
 @tailwind utilities;
 
 :root {
+  --gold: #E4A11B;
+  --gold-light: #f5c842;
+  --bg-dark: #121212;
+  --card-bg: #1e1e1e;
+  --card-border: #2a2a2a;
+  --text-muted: #9ca3af;
+}
+
+body {
+  background-color: #121212;
+  color: #ffffff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: #E4A11B; border-radius: 4px; }
+
+.gold-text {
+  background: linear-gradient(135deg, #E4A11B, #f5c842);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.menu-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.menu-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(228, 161, 27, 0.15);
+}
+
+:root {
   --background: #ffffff;
   --foreground: #171717;
 }
