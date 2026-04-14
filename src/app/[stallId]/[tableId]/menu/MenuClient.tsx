@@ -58,7 +58,6 @@ export default function MenuClient({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
   const [specialsModalOpen, setSpecialsModalOpen] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [noDealsAlert, setNoDealsAlert] = useState<string | null>(null);
@@ -288,7 +287,6 @@ export default function MenuClient({
 
       setOrderId(ref.id);
       setOrderStatus("pending");
-      setOrderSuccess(true);
       setShowOrderPlacedAlert(true);
       setCartOpen(false);
       clearCart();
@@ -463,7 +461,6 @@ export default function MenuClient({
               <button
                 onClick={() => {
                   setShowOrderPlacedAlert(false);
-                  setOrderSuccess(false);
                 }}
                 className="mt-3 w-full py-2.5 rounded-xl bg-[#E4A11B] text-black text-sm font-semibold"
               >
