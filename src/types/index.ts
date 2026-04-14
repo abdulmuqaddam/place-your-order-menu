@@ -21,6 +21,19 @@ export interface StallData {
   tableCount?: number;
   ownerUid?: string;
   isOrderingOpen?: boolean;
+  paymentInfo?: {
+    bankName?: string;
+    accountTitle?: string;
+    accountNo?: string;
+  };
+  paymentAccounts?: Array<{
+    id?: string;
+    accountTitle: string;
+    accountNo: string;
+    note?: string;
+    active?: boolean;
+    createdAt?: string;
+  }>;
 }
 
 export interface CartItem {

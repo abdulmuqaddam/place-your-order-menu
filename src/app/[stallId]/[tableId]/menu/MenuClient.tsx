@@ -53,6 +53,7 @@ export default function MenuClient({
   const [orderData, setOrderData] = useState<any>(null);
   const [orderIsPaid, setOrderIsPaid] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{ bankName?: string; accountTitle?: string; accountNo?: string } | null>(null);
+  const [paymentAccounts, setPaymentAccounts] = useState<Array<{ accountTitle: string; accountNo: string; note?: string; active?: boolean }>>([]);
   const [onlinePayment, setOnlinePayment] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
@@ -64,6 +65,7 @@ export default function MenuClient({
   const [showDebugInfo, setShowDebugInfo] = useState(initialMenu.length === 0);
   const [addingTestItems, setAddingTestItems] = useState(false);
   const [isOrderingOpen, setIsOrderingOpen] = useState(true);
+  const [showOrderPlacedAlert, setShowOrderPlacedAlert] = useState(false);
   const dealsSectionRef = useRef<HTMLDivElement | null>(null);
 
   const parseDealExpiryDate = useCallback((deal: Deal) => {
@@ -100,6 +102,23 @@ export default function MenuClient({
       const data = snap.data();
       setIsOrderingOpen(data.isOrderingOpen !== false);
       setPaymentInfo(data.paymentInfo || null);
+
+      if (Array.isArray(data.paymentAccounts) && data.paymentAccounts.length > 0) {
+        setPaymentAccounts(
+          data.paymentAccounts.filter((acc: { active?: boolean }) => acc.active !== false)
+        );
+      } else if (data.paymentInfo?.accountNo || data.paymentInfo?.accountTitle) {
+        setPaymentAccounts([
+          {
+            accountTitle: data.paymentInfo.accountTitle || "Account",
+            accountNo: data.paymentInfo.accountNo || "",
+            note: data.paymentInfo.bankName || "",
+            active: true,
+          },
+        ]);
+      } else {
+        setPaymentAccounts([]);
+      }
     });
     return unsub;
   }, [ownerUid]);
@@ -270,6 +289,7 @@ export default function MenuClient({
       setOrderId(ref.id);
       setOrderStatus("pending");
       setOrderSuccess(true);
+      setShowOrderPlacedAlert(true);
       setCartOpen(false);
       clearCart();
     } catch (err) {
@@ -431,14 +451,26 @@ export default function MenuClient({
         </div>
       )}
 
-      {orderSuccess && orderId && (
-        <div className="mx-4 mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
-          <p className="text-green-700 font-semibold text-sm mb-1">
-            ✅ Order placed successfully!
-          </p>
-          <p className="text-slate-500 text-xs">
-            Thanks for ordering! Please wait while we prepare your meal.
-          </p>
+      {showOrderPlacedAlert && orderId && (
+        <div className="fixed top-16 left-0 right-0 z-[70] px-4 pointer-events-none">
+          <div className="max-w-md mx-auto pointer-events-auto bg-white border border-green-200 rounded-2xl shadow-[0_16px_40px_rgba(16,185,129,0.25)] overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+              <p className="text-green-700 font-bold text-sm">Order Confirmed</p>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-slate-700 text-sm">Your order was placed successfully.</p>
+              <p className="text-slate-500 text-xs mt-1">Order ID: {orderId.slice(0, 8)}...</p>
+              <button
+                onClick={() => {
+                  setShowOrderPlacedAlert(false);
+                  setOrderSuccess(false);
+                }}
+                className="mt-3 w-full py-2.5 rounded-xl bg-[#E4A11B] text-black text-sm font-semibold"
+              >
+                Okay
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -473,7 +505,7 @@ export default function MenuClient({
             <span className="text-[#E4A11B] font-bold text-xl">Rs. {orderData.totalAmount}</span>
           </div>
           {/* Online Payment section */}
-          {paymentInfo && (
+          {(paymentAccounts.length > 0 || paymentInfo) && (
             <div className="px-4 py-3 border-t border-blue-50">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-700 text-sm font-medium">💳 Pay Online</span>
@@ -490,22 +522,41 @@ export default function MenuClient({
               </div>
               {onlinePayment && (
                 <div className="space-y-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1.5">
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">Bank Account Details</p>
-                    {paymentInfo.bankName && <p className="text-slate-700 text-sm">🏦 {paymentInfo.bankName}</p>}
-                    {paymentInfo.accountTitle && <p className="text-slate-700 text-sm">👤 {paymentInfo.accountTitle}</p>}
-                    {paymentInfo.accountNo && (
-                      <div className="flex items-center justify-between bg-white border border-blue-100 rounded-lg px-3 py-2 mt-1">
-                        <span className="text-slate-800 font-mono font-bold text-sm">{paymentInfo.accountNo}</span>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(paymentInfo!.accountNo!)}
-                          className="text-[#E4A11B] text-xs font-bold hover:text-amber-600 ml-2"
-                        >
-                          Copy
-                        </button>
+                  {paymentAccounts.length > 0 ? (
+                    paymentAccounts.map((acc, idx) => (
+                      <div key={`${acc.accountNo}-${idx}`} className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1.5">
+                        <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">Payment Account</p>
+                        <p className="text-slate-700 text-sm">👤 {acc.accountTitle}</p>
+                        {!!acc.note && <p className="text-slate-600 text-xs">{acc.note}</p>}
+                        <div className="flex items-center justify-between bg-white border border-blue-100 rounded-lg px-3 py-2 mt-1">
+                          <span className="text-slate-800 font-mono font-bold text-sm">{acc.accountNo}</span>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(acc.accountNo)}
+                            className="text-[#E4A11B] text-xs font-bold hover:text-amber-600 ml-2"
+                          >
+                            Copy
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1.5">
+                      <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">Bank Account Details</p>
+                      {paymentInfo?.bankName && <p className="text-slate-700 text-sm">🏦 {paymentInfo.bankName}</p>}
+                      {paymentInfo?.accountTitle && <p className="text-slate-700 text-sm">👤 {paymentInfo.accountTitle}</p>}
+                      {paymentInfo?.accountNo && (
+                        <div className="flex items-center justify-between bg-white border border-blue-100 rounded-lg px-3 py-2 mt-1">
+                          <span className="text-slate-800 font-mono font-bold text-sm">{paymentInfo.accountNo}</span>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(paymentInfo.accountNo || "")}
+                            className="text-[#E4A11B] text-xs font-bold hover:text-amber-600 ml-2"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <label className="text-slate-600 text-xs font-medium block mb-1.5">📷 Upload Payment Screenshot</label>
                     <input
