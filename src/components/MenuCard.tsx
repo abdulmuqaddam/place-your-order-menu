@@ -40,7 +40,7 @@ export default function MenuCard({
   isDealHighlighted = false,
 }: Props) {
   return (
-    <div className="menu-card bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden flex flex-col shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
+    <div className="menu-card bg-white border border-blue-100 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
       {/* Image */}
       <div className="relative w-full h-28 md:h-36 bg-[#2a2a2a] flex-shrink-0">
         {item.image ? (
@@ -52,7 +52,7 @@ export default function MenuCard({
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl">
+          <div className="w-full h-full flex items-center justify-center text-4xl bg-blue-50">
             🍽️
           </div>
         )}
@@ -81,11 +81,11 @@ export default function MenuCard({
 
       {/* Info */}
       <div className="p-2.5 flex flex-col flex-1 gap-1">
-        <h3 className="text-white font-semibold text-[13px] leading-tight line-clamp-1">
+        <h3 className="text-slate-800 font-semibold text-[13px] leading-tight line-clamp-1">
           {item.name}
         </h3>
         {item.description && (
-          <p className="text-gray-500 text-[11px] line-clamp-2">{item.description}</p>
+          <p className="text-slate-500 text-[11px] line-clamp-2">{item.description}</p>
         )}
         <p className="text-[#E4A11B] text-[11px] font-semibold mt-auto pt-1">
           {getPriceLabel(item, businessType)}
@@ -102,14 +102,14 @@ export default function MenuCard({
             Place Order
           </button>
         ) : (
-          <div className="flex items-center justify-between bg-[#2a2a2a] rounded-lg px-2.5 py-1.5">
+          <div className="flex items-center justify-between bg-blue-50 rounded-lg px-2.5 py-1.5">
             <button
               onClick={onDecrease}
-              className="w-6 h-6 rounded-md bg-[#1e1e1e] flex items-center justify-center active:scale-90 transition-transform"
+              className="w-6 h-6 rounded-md bg-white border border-blue-200 flex items-center justify-center active:scale-90 transition-transform"
             >
               <MinusIcon className="w-4 h-4 text-[#E4A11B]" />
             </button>
-            <span className="text-white font-bold text-xs min-w-[20px] text-center">
+            <span className="text-slate-800 font-bold text-xs min-w-[20px] text-center">
               {quantity}
             </span>
             <button

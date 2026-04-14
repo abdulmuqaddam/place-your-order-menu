@@ -25,8 +25,8 @@ export default function OrderTracker({ status }: Props) {
   const currentIndex = ORDER_INDEX[status] ?? 0;
 
   return (
-    <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4">
-      <p className="text-white font-semibold text-sm mb-4">
+    <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-sm">
+      <p className="text-slate-800 font-semibold text-sm mb-4">
         🔄 Tracking Your Order
       </p>
 
@@ -44,8 +44,8 @@ export default function OrderTracker({ status }: Props) {
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-base transition-all ${
                   isDone
-                    ? "bg-[#E4A11B] shadow-[0_0_12px_rgba(228,161,27,0.5)]"
-                    : "bg-[#2a2a2a] text-gray-600"
+                    ? "bg-[#E4A11B] shadow-[0_0_12px_rgba(228,161,27,0.4)]"
+                    : "bg-blue-50 text-slate-400"
                 } ${isActive ? "scale-110" : ""}`}
               >
                 {isDone ? step.icon : "○"}
@@ -54,7 +54,7 @@ export default function OrderTracker({ status }: Props) {
               {/* Label */}
               <p
                 className={`text-[10px] text-center leading-tight ${
-                  isDone ? "text-[#E4A11B] font-medium" : "text-gray-600"
+                  isDone ? "text-[#E4A11B] font-medium" : "text-slate-400"
                 }`}
               >
                 {step.label}
@@ -70,7 +70,7 @@ export default function OrderTracker({ status }: Props) {
       </div>
 
       {/* Progress bar */}
-      <div className="mt-4 bg-[#2a2a2a] rounded-full h-1 overflow-hidden">
+      <div className="mt-4 bg-blue-50 rounded-full h-1.5 overflow-hidden">
         <div
           className="h-full bg-[#E4A11B] rounded-full transition-all duration-700"
           style={{ width: `${((currentIndex) / (STEPS.length - 1)) * 100}%` }}

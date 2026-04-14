@@ -65,6 +65,7 @@ export interface Deal {
   openingTime: string;
   closingTime: string;
   endDate: string;
+  endAt?: string;
   image?: string | null;
   active?: boolean;
 }

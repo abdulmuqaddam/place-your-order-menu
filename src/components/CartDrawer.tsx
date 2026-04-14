@@ -53,59 +53,58 @@ export default function CartDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleBackdrop}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
           />
 
-          {/* Drawer */}
+          {/* Right-side Offcanvas Drawer */}
           <motion.div
             key="drawer"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1a1a] border-t border-[#2a2a2a] rounded-t-3xl max-h-[85vh] flex flex-col"
+            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm bg-white border-l border-blue-100 shadow-2xl flex flex-col"
           >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-[#3a3a3a] rounded-full" />
-            </div>
-
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[#2a2a2a]">
-              <h2 className="text-white font-bold text-lg">
-                Your Cart
-                <span className="ml-2 text-sm font-normal text-gray-400">
-                  ({cartItems.length} item{cartItems.length !== 1 ? "s" : ""})
-                </span>
-              </h2>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-blue-100 bg-white">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🛒</span>
+                <div>
+                  <h2 className="text-slate-800 font-bold text-base">Your Cart</h2>
+                  <p className="text-slate-400 text-xs">
+                    {cartItems.length} item{cartItems.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-[#2a2a2a] flex items-center justify-center hover:bg-[#3a3a3a] transition-colors"
+                className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition-colors"
               >
-                <XMarkIcon className="w-4 h-4 text-white" />
+                <XMarkIcon className="w-4 h-4 text-slate-600" />
               </button>
             </div>
 
             {/* Items */}
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-[#F7FBFF]">
               {cartItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-                  <span className="text-4xl mb-3">🛒</span>
-                  <p className="text-sm">Your cart is empty</p>
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                  <span className="text-5xl mb-3">🛒</span>
+                  <p className="text-sm font-medium">Your cart is empty</p>
+                  <p className="text-xs mt-1">Add items from the menu</p>
                 </div>
               ) : (
                 cartItems.map(({ item, quantity }) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 bg-[#222] rounded-xl p-3 border border-[#2a2a2a]"
+                    className="flex items-center gap-3 bg-white rounded-xl p-3 border border-blue-100 shadow-sm"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">
+                      <p className="text-slate-800 text-sm font-semibold truncate">
                         {item.name}
                       </p>
-                      <p className="text-[#E4A11B] text-xs mt-0.5">
+                      <p className="text-[#E4A11B] text-xs mt-0.5 font-medium">
                         Rs. {item.price} × {quantity} ={" "}
-                        <span className="font-semibold">
+                        <span className="font-bold">
                           Rs. {item.price * quantity}
                         </span>
                       </p>
@@ -113,15 +112,15 @@ export default function CartDrawer({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onUpdateQty(item.id, -1)}
-                        className="w-7 h-7 rounded-lg bg-[#2a2a2a] flex items-center justify-center active:scale-90 transition-transform"
+                        className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center active:scale-90 transition-transform"
                       >
                         {quantity === 1 ? (
                           <TrashIcon className="w-3.5 h-3.5 text-red-400" />
                         ) : (
-                          <MinusIcon className="w-3.5 h-3.5 text-gray-300" />
+                          <MinusIcon className="w-3.5 h-3.5 text-slate-600" />
                         )}
                       </button>
-                      <span className="text-white font-bold text-sm w-5 text-center">
+                      <span className="text-slate-800 font-bold text-sm w-5 text-center">
                         {quantity}
                       </span>
                       <button
@@ -138,17 +137,17 @@ export default function CartDrawer({
 
             {/* Footer */}
             {cartItems.length > 0 && (
-              <div className="px-5 pb-8 pt-4 border-t border-[#2a2a2a] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Total</span>
-                  <span className="text-white font-bold text-lg">
+              <div className="px-4 pb-8 pt-4 border-t border-blue-100 bg-white space-y-3">
+                <div className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-3">
+                  <span className="text-slate-600 text-sm font-medium">Order Total</span>
+                  <span className="text-slate-800 font-bold text-xl">
                     Rs. {total}
                   </span>
                 </div>
                 <button
                   onClick={onPlaceOrder}
                   disabled={placing}
-                  className="w-full py-4 rounded-2xl bg-[#E4A11B] text-black font-bold text-base shadow-[0_4px_20px_rgba(228,161,27,0.3)] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full py-4 rounded-2xl bg-[#E4A11B] text-black font-bold text-base shadow-[0_4px_20px_rgba(228,161,27,0.25)] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {placing ? "Placing Order..." : "Place Order 🍽️"}
                 </button>

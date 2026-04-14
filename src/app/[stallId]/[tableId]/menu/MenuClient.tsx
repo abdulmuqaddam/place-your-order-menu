@@ -9,6 +9,7 @@ import {
   onSnapshot,
   serverTimestamp,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import type { Cart, Deal, MenuItem, Order, OrderStatus } from "@/types";
@@ -42,11 +43,19 @@ export default function MenuClient({
   );
 
   const [menu, setMenu] = useState<MenuItem[]>(initialMenu);
+  const [menuLoading, setMenuLoading] = useState(initialMenu.length === 0);
   const [cart, setCart] = useState<Cart>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [orderData, setOrderData] = useState<any>(null);
+  const [orderIsPaid, setOrderIsPaid] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<{ bankName?: string; accountTitle?: string; accountNo?: string } | null>(null);
+  const [onlinePayment, setOnlinePayment] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [specialsModalOpen, setSpecialsModalOpen] = useState(false);
@@ -57,6 +66,30 @@ export default function MenuClient({
   const [isOrderingOpen, setIsOrderingOpen] = useState(true);
   const dealsSectionRef = useRef<HTMLDivElement | null>(null);
 
+  const parseDealExpiryDate = useCallback((deal: Deal) => {
+    if (deal.endAt) {
+      const fromEndAt = new Date(deal.endAt);
+      if (!Number.isNaN(fromEndAt.getTime())) return fromEndAt;
+    }
+
+    if (!deal.endDate) return null;
+
+    const isoLike = deal.endDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoLike) {
+      const d = new Date(`${deal.endDate}T23:59:59`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    const legacy = deal.endDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (legacy) {
+      const d = new Date(Number(legacy[3]), Number(legacy[2]) - 1, Number(legacy[1]), 23, 59, 59, 999);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    const fallback = new Date(deal.endDate);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }, []);
+
   useEffect(() => {
     if (!ownerUid) return;
     const unsub = onSnapshot(doc(db, "stalls", ownerUid), (snap) => {
@@ -64,15 +97,35 @@ export default function MenuClient({
         setIsOrderingOpen(true);
         return;
       }
-      setIsOrderingOpen(snap.data().isOrderingOpen !== false);
+      const data = snap.data();
+      setIsOrderingOpen(data.isOrderingOpen !== false);
+      setPaymentInfo(data.paymentInfo || null);
     });
     return unsub;
   }, [ownerUid]);
+
+  // ── Restore order from localStorage on mount ──────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined" || !ownerUid) return;
+    const key = `ov_order_${ownerUid}_${tableId}`;
+    const stored = localStorage.getItem(key);
+    if (stored) setOrderId(stored);
+  }, [ownerUid, tableId]);
+
+  // ── Persist orderId in localStorage ───────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined" || !ownerUid) return;
+    const key = `ov_order_${ownerUid}_${tableId}`;
+    if (orderId) {
+      localStorage.setItem(key, orderId);
+    }
+  }, [orderId, ownerUid, tableId]);
 
   // ── Real-time menu listener ─────────────────────────────────────────────────
   useEffect(() => {
     if (stallIdCandidates.length === 0) {
       setMenu([]);
+      setMenuLoading(false);
       return;
     }
 
@@ -80,12 +133,19 @@ export default function MenuClient({
       ? query(collection(db, "menu"), where("stallId", "==", stallIdCandidates[0]))
       : query(collection(db, "menu"), where("stallId", "in", stallIdCandidates.slice(0, 10)));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs
-        .map((d) => ({ id: d.id, ...d.data() } as MenuItem))
-        .filter((item) => item.available !== false);
-      setMenu(items);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs
+          .map((d) => ({ id: d.id, ...d.data() } as MenuItem))
+          .filter((item) => item.available !== false);
+        setMenu(items);
+        setMenuLoading(false);
+      },
+      () => {
+        setMenuLoading(false);
+      }
+    );
 
     return unsubscribe;
   }, [stallIdCandidates]);
@@ -122,6 +182,16 @@ export default function MenuClient({
     });
     return names;
   }, [deals]);
+
+  // ── Deals visible to customer (filter expired at render time too) ─────────
+  const visibleDeals = useMemo(() => {
+    const now = new Date();
+    return deals.filter((deal) => {
+      const end = parseDealExpiryDate(deal);
+      if (end && now > end) return false;
+      return true;
+    });
+  }, [deals, parseDealExpiryDate]);
 
   // ── Cart helpers ───────────────────────────────────────────────────────────
   const cartCount = useMemo(
@@ -214,11 +284,19 @@ export default function MenuClient({
     if (!orderId) return;
     const unsub = onSnapshot(doc(db, "orders", orderId), (snap) => {
       if (snap.exists()) {
-        setOrderStatus(snap.data().status as OrderStatus);
+        const data = snap.data();
+        setOrderStatus(data.status as OrderStatus);
+        setOrderData({ id: snap.id, ...data });
+        const paid = data.isPaid === true;
+        setOrderIsPaid(paid);
+        if (paid && typeof window !== "undefined") {
+          const key = `ov_order_${ownerUid}_${tableId}`;
+          localStorage.removeItem(key);
+        }
       }
     });
     return unsub;
-  }, [orderId]);
+  }, [orderId, ownerUid, tableId]);
 
   useEffect(() => {
     if (!ownerUid) return;
@@ -232,10 +310,8 @@ export default function MenuClient({
         .filter((deal) => {
           if (deal.active === false) return false;
 
-          if (deal.endDate) {
-            const end = new Date(`${deal.endDate}T23:59:59`);
-            if (!Number.isNaN(end.getTime()) && now > end) return false;
-          }
+          const end = parseDealExpiryDate(deal);
+          if (end && now > end) return false;
           return true;
         });
 
@@ -243,12 +319,12 @@ export default function MenuClient({
     });
 
     return unsub;
-  }, [ownerUid]);
+  }, [ownerUid, parseDealExpiryDate]);
 
   // ── Navbar handler ─────────────────────────────────────────────────────────
   const handleNavAction = (type: "offers" | "specials") => {
     if (type === "offers") {
-      if (deals.length === 0) {
+      if (visibleDeals.length === 0) {
         setNoDealsAlert("No live deals right now. Please check again later.");
         return;
       }
@@ -264,6 +340,34 @@ export default function MenuClient({
     }
     setSpecialsModalOpen(true);
   };
+
+  // ── Submit payment proof ───────────────────────────────────────────────────
+  const submitPaymentProof = useCallback(async () => {
+    if (!proofFile || !orderId) return;
+    setProofUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", proofFile);
+      formData.append("upload_preset", "Tea Stall");
+      formData.append("folder", "payment_proofs");
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dcds137tp/image/upload",
+        { method: "POST", body: formData }
+      );
+      const cloudData = await res.json();
+      if (!cloudData.secure_url) throw new Error("Upload failed");
+      await updateDoc(doc(db, "orders", orderId), {
+        paymentProofUrl: cloudData.secure_url,
+        paymentMethod: "online",
+        paymentStatus: "pending_approval",
+      });
+      setProofFile(null);
+    } catch {
+      // silently ignore – user can retry
+    } finally {
+      setProofUploading(false);
+    }
+  }, [proofFile, orderId]);
 
   // ── Add test items handler ───────────────────────────────────────────────────
   const handleAddTestItems = async () => {
@@ -298,7 +402,7 @@ export default function MenuClient({
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] flex flex-col">
+    <div className="min-h-screen bg-[#EFF6FF] flex flex-col">
       <Navbar
         stallId={stallId}
         tableId={tableId}
@@ -310,29 +414,29 @@ export default function MenuClient({
       />
 
       {/* ── Hero banner ── */}
-      <div className="relative bg-gradient-to-b from-[#1a1a1a] to-[#121212] pt-20 pb-8 px-4 text-center overflow-hidden">
+      <div className="relative bg-gradient-to-b from-white to-[#EFF6FF] pt-20 pb-6 px-4 text-center overflow-hidden border-b border-blue-100">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-[#E4A11B] opacity-[0.04] blur-[80px] rounded-full" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-[#E4A11B] opacity-[0.06] blur-[80px] rounded-full" />
         </div>
-        <p className="text-[#E4A11B] text-sm mt-2 relative z-10 font-medium">
+        <p className="text-[#E4A11B] text-sm mt-2 relative z-10 font-semibold tracking-wide">
           📍 Table No: {tableId}
         </p>
       </div>
 
       {/* ── Order success toast ── */}
       {!isOrderingOpen && (
-        <div className="mx-4 mt-4 bg-[#2b1616] border border-[#6b2a2a] rounded-xl p-4">
-          <p className="text-[#FFB3B3] font-semibold text-sm">Online ordering is currently closed.</p>
-          <p className="text-gray-300 text-xs mt-1">Please check back later when the tea stall opens orders.</p>
+        <div className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-700 font-semibold text-sm">Online ordering is currently closed.</p>
+          <p className="text-red-500 text-xs mt-1">Please check back later when the restaurant opens orders.</p>
         </div>
       )}
 
       {orderSuccess && orderId && (
-        <div className="mx-4 mt-4 bg-[#1a2a1a] border border-green-700/50 rounded-xl p-4">
-          <p className="text-green-400 font-semibold text-sm mb-1">
+        <div className="mx-4 mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+          <p className="text-green-700 font-semibold text-sm mb-1">
             ✅ Order placed successfully!
           </p>
-          <p className="text-gray-400 text-xs">
+          <p className="text-slate-500 text-xs">
             Thanks for ordering! Please wait while we prepare your meal.
           </p>
         </div>
@@ -345,16 +449,104 @@ export default function MenuClient({
         </div>
       )}
 
+      {/* ── Persistent Bill Summary ── */}
+      {orderId && !orderIsPaid && orderData && (
+        <div className="mx-4 mt-3 bg-white border border-blue-100 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-blue-50 flex items-center justify-between">
+            <h3 className="text-slate-800 font-bold text-sm flex items-center gap-1.5">🧾 Your Bill</h3>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+              orderStatus === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-[#E4A11B] border border-amber-200'
+            }`}>
+              {orderStatus === 'completed' ? 'Served — Pending Payment' : orderStatus === 'preparing' ? 'Being Prepared 👨‍🍳' : orderStatus === 'ready' ? 'Ready! 🔔' : 'Order Received ✅'}
+            </span>
+          </div>
+          <div className="px-4 py-3 space-y-2 max-h-40 overflow-y-auto">
+            {(orderData.items || []).map((item: { name: string; price: number; quantity: number }, i: number) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">{item.quantity} × {item.name}</span>
+                <span className="text-slate-800 font-medium">Rs. {item.price * item.quantity}</span>
+              </div>
+            ))}
+          </div>
+          <div className="px-4 py-3 border-t border-blue-50 bg-blue-50/50 flex items-center justify-between">
+            <span className="text-slate-700 font-semibold text-sm">Total Bill</span>
+            <span className="text-[#E4A11B] font-bold text-xl">Rs. {orderData.totalAmount}</span>
+          </div>
+          {/* Online Payment section */}
+          {paymentInfo && (
+            <div className="px-4 py-3 border-t border-blue-50">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-slate-700 text-sm font-medium">💳 Pay Online</span>
+                <button
+                  onClick={() => setOnlinePayment((p) => !p)}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                    onlinePayment ? 'bg-[#E4A11B]' : 'bg-slate-200'
+                  }`}
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    onlinePayment ? 'translate-x-5' : ''
+                  }`} />
+                </button>
+              </div>
+              {onlinePayment && (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1.5">
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">Bank Account Details</p>
+                    {paymentInfo.bankName && <p className="text-slate-700 text-sm">🏦 {paymentInfo.bankName}</p>}
+                    {paymentInfo.accountTitle && <p className="text-slate-700 text-sm">👤 {paymentInfo.accountTitle}</p>}
+                    {paymentInfo.accountNo && (
+                      <div className="flex items-center justify-between bg-white border border-blue-100 rounded-lg px-3 py-2 mt-1">
+                        <span className="text-slate-800 font-mono font-bold text-sm">{paymentInfo.accountNo}</span>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(paymentInfo!.accountNo!)}
+                          className="text-[#E4A11B] text-xs font-bold hover:text-amber-600 ml-2"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-slate-600 text-xs font-medium block mb-1.5">📷 Upload Payment Screenshot</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                      className="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:font-medium hover:file:bg-blue-100 cursor-pointer"
+                    />
+                  </div>
+                  {proofFile && (
+                    <button
+                      onClick={submitPaymentProof}
+                      disabled={proofUploading}
+                      className="w-full py-2.5 rounded-xl bg-[#E4A11B] text-black font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-60"
+                    >
+                      {proofUploading ? 'Submitting...' : '✅ Submit Payment Proof'}
+                    </button>
+                  )}
+                  {orderData.paymentStatus === 'pending_approval' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                      <p className="text-amber-700 text-sm font-semibold">⏳ Payment proof submitted</p>
+                      <p className="text-amber-600 text-xs mt-0.5">Waiting for staff approval...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── No-deals alert ── */}
       {noDealsAlert && (
-        <div className="mx-4 mt-4 bg-[#1e1a10] border border-[#E4A11B]/30 rounded-xl p-4 flex items-start gap-3">
+        <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
           <span className="text-[#E4A11B] text-xl">⚠️</span>
           <div className="flex-1">
-            <p className="text-[#E4A11B] text-sm">{noDealsAlert}</p>
+            <p className="text-slate-700 text-sm">{noDealsAlert}</p>
           </div>
           <button
             onClick={() => setNoDealsAlert(null)}
-            className="text-gray-500 hover:text-gray-300 text-lg leading-none"
+            className="text-slate-400 hover:text-slate-600 text-lg leading-none"
           >
             ×
           </button>
@@ -362,7 +554,7 @@ export default function MenuClient({
       )}
 
       {/* ── Category Tabs ── */}
-      <div className="sticky top-14 z-30 bg-[#121212]/95 backdrop-blur-md border-b border-[#2a2a2a] px-4 py-3 mt-4">
+      <div className="sticky top-14 z-30 bg-white/95 backdrop-blur-md border-b border-blue-100 px-4 py-3 mt-2 shadow-sm">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
           {categories.map((cat) => (
             <button
@@ -370,8 +562,8 @@ export default function MenuClient({
               onClick={() => setActiveCategory(cat)}
               className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                 activeCategory === cat
-                  ? "bg-[#E4A11B] text-black"
-                  : "bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] hover:text-white border border-[#2a2a2a]"
+                  ? "bg-[#E4A11B] text-black shadow-sm"
+                  : "bg-blue-50 text-slate-500 hover:bg-blue-100 hover:text-slate-700 border border-blue-100"
               }`}
             >
               {cat}
@@ -382,22 +574,50 @@ export default function MenuClient({
 
       {/* ── Menu Grid ── */}
       <main className="flex-1 px-4 py-6">
+        {menuLoading ? (
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-2xl border border-blue-100 bg-white p-6 mb-5 relative overflow-hidden shadow-sm">
+              <div className="absolute -top-16 -right-12 w-40 h-40 rounded-full bg-[#E4A11B]/15 blur-2xl" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 rounded-full border-2 border-[#E4A11B]/30 border-t-[#E4A11B] animate-spin" />
+                <div>
+                  <p className="text-[#E4A11B] font-bold text-base">Preparing Your Menu</p>
+                  <p className="text-slate-400 text-sm">Loading dishes and today highlights...</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 animate-pulse">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div key={`menu-skeleton-${idx}`} className="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm">
+                  <div className="h-28 bg-blue-50" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 rounded bg-blue-100" />
+                    <div className="h-3 rounded bg-blue-50 w-2/3" />
+                    <div className="h-7 rounded bg-blue-100 mt-3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         {/* ── Today Deals Section ── */}
-        {deals.length > 0 && (
+        {visibleDeals.length > 0 && (
           <div ref={dealsSectionRef} className="mb-8 scroll-mt-24">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-[#E4A11B] text-xl">🏷️</span>
-              <h2 className="text-white font-bold text-lg">Today Deal</h2>
-              <span className="text-gray-500 text-xs">({deals.length})</span>
+              <h2 className="text-slate-800 font-bold text-lg">Today Deal</h2>
+              <span className="text-slate-400 text-xs">({visibleDeals.length})</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pb-6 border-b border-[#2a2a2a]">
-              {deals.map((deal) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pb-6 border-b border-blue-100">
+              {visibleDeals.map((deal) => (
                 <div
                   key={deal.id}
-                  className="menu-card bg-[#1a1a1a] border border-[#22c55e]/30 rounded-xl overflow-hidden flex flex-col shadow-[0_6px_18px_rgba(0,0,0,0.25)]"
+                  className="bg-white border border-[#22c55e]/30 rounded-xl overflow-hidden flex flex-col shadow-sm"
                 >
                   {/* Deal Image */}
-                  <div className="relative w-full h-28 md:h-36 bg-[#2a2a2a] flex-shrink-0">
+                  <div className="relative w-full h-28 md:h-36 bg-blue-50 flex-shrink-0">
                     {deal.image ? (
                       <img
                         src={deal.image}
@@ -418,18 +638,23 @@ export default function MenuClient({
 
                   {/* Deal Info */}
                   <div className="p-2.5 flex flex-col flex-1 gap-1">
-                    <h3 className="text-white font-semibold text-[13px] leading-tight line-clamp-1">
+                    <h3 className="text-slate-800 font-semibold text-[13px] leading-tight line-clamp-1">
                       {deal.name}
                     </h3>
-                    <p className="text-gray-400 text-[11px] line-clamp-2">
+                    <p className="text-slate-500 text-[11px] line-clamp-2">
                       {deal.itemNames || "Special combo"}
                     </p>
-                    <p className="text-[#E4A11B] text-[11px] font-semibold mt-auto pt-1">
+                    <p className="text-[#E4A11B] text-[12px] font-bold mt-auto pt-1">
                       Rs. {deal.price}
                     </p>
+                    {(deal.openingTime || deal.closingTime) && (
+                      <p className="text-blue-500 text-[10px]">
+                        🕐 {deal.openingTime} – {deal.closingTime}
+                      </p>
+                    )}
                     {deal.endDate && (
-                      <p className="text-gray-500 text-[10px]">
-                        Valid till {deal.endDate}
+                      <p className="text-slate-400 text-[10px]">
+                        📅 Valid till {deal.endDate}
                       </p>
                     )}
                   </div>
@@ -466,10 +691,10 @@ export default function MenuClient({
         {/* ── Menu Items Section ── */}
         {menu.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="bg-[#1e1e1e] border border-[#E4A11B]/30 rounded-2xl p-8 w-full max-w-md text-center">
+            <div className="bg-white border border-amber-200 rounded-2xl p-8 w-full max-w-md text-center shadow-sm">
               <span className="text-5xl mb-4 block">📋</span>
               <h2 className="text-[#E4A11B] font-bold text-lg mb-2">Menu Not Available</h2>
-              <p className="text-gray-400 text-sm mb-6">
+              <p className="text-slate-500 text-sm mb-6">
                 The menu for this table has not been set up yet. Please ask the staff to add menu items.
               </p>
               
@@ -484,15 +709,15 @@ export default function MenuClient({
 
               {/* Debug Info */}
               {showDebugInfo && (
-                <div className="text-left mt-6 pt-6 border-t border-[#2a2a2a]">
+                <div className="text-left mt-6 pt-6 border-t border-blue-100">
                   <button
                     onClick={() => setShowDebugInfo(!showDebugInfo)}
-                    className="text-[#E4A11B] text-xs font-mono mb-3 hover:text-white"
+                    className="text-[#E4A11B] text-xs font-mono mb-3 hover:text-amber-600"
                   >
                     {showDebugInfo ? "Hide" : "Show"} Debug Info
                   </button>
                   {showDebugInfo && (
-                    <div className="bg-[#0a0a0a] rounded p-3 text-left text-xs text-gray-400 font-mono">
+                    <div className="bg-blue-50 rounded p-3 text-left text-xs text-slate-500 font-mono">
                       <p className="mb-1"><span className="text-[#E4A11B]">Stall ID:</span> {stallId}</p>
                       <p className="mb-1"><span className="text-[#E4A11B]">Owner UID:</span> {ownerUid}</p>
                       <p className="mb-1"><span className="text-[#E4A11B]">Lookup IDs:</span> {stallIdCandidates.join(", ")}</p>
@@ -507,13 +732,13 @@ export default function MenuClient({
             </div>
           </div>
         ) : filteredMenu.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <span className="text-5xl mb-4">🍽️</span>
             <p className="text-base">No items in this category</p>
           </div>
         ) : (
           <>
-            <h3 className="text-white font-bold text-lg mb-4">All Menu Items</h3>
+            <h3 className="text-slate-800 font-bold text-lg mb-4">All Menu Items</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredMenu.map((item) => (
                 <MenuCard
@@ -530,6 +755,8 @@ export default function MenuClient({
             </div>
           </>
         )}
+          </>
+        )}
       </main>
 
       {/* ── Sticky Cart Bar ── */}
@@ -537,7 +764,7 @@ export default function MenuClient({
         <div className="sticky bottom-4 px-4 z-40">
           <button
             onClick={() => setCartOpen(true)}
-            className="w-full bg-[#E4A11B] text-black font-bold py-4 rounded-2xl flex items-center justify-between px-5 shadow-[0_8px_30px_rgba(228,161,27,0.4)] active:scale-[0.98] transition-transform"
+            className="w-full bg-[#E4A11B] text-black font-bold py-4 rounded-2xl flex items-center justify-between px-5 shadow-[0_8px_30px_rgba(228,161,27,0.35)] active:scale-[0.98] transition-transform"
           >
             <span className="bg-black/20 text-black text-sm px-2.5 py-0.5 rounded-full font-bold">
               {cartCount} item{cartCount > 1 ? "s" : ""}
